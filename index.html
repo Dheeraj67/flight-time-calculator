@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Time and Control Ratio Calculator</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(to right, #00c6ff, #0072ff);
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-gap: 20px;
+            color: #fff;
+        }
+
+        .calculator,
+        .data {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333333;
+        }
+
+        form {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333333;
+        }
+
+        input[type="number"] {
+            width: calc(100% - 22px);
+            padding: 12px;
+            /* Increased padding */
+            margin-bottom: 10px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            background: #f0f0f0;
+            color: #333333;
+            font-size: 16px;
+            /* Increased font size */
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            /* Increased padding */
+            background-color: #007bff;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 16px;
+            /* Increased font size */
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #results {
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            color: #333333;
+        }
+
+        .results-box {
+            padding: 20px;
+            margin-top: 20px;
+            background-color: #f0f0f0;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            color: #333333;
+        }
+
+        .highlighted-text {
+            background-color: #b5c8f4;
+            padding: 6px;
+            border-radius: 4px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            background-color: #ffffff;
+        }
+
+        th,
+        td {
+            border: 1px solid #dddddd;
+            text-align: left;
+            padding: 8px;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .error {
+            color: #ff4500;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="calculator">
+        <h1>Flight Time and Control Ratio Calculator</h1>
+        <form id="flightCalculator">
+            <label for="batteryWeight">Battery Weight (g):</label>
+            <input type="number" id="batteryWeight" required>
+            <label for="batteryCapacity">Battery Capacity (Wh):</label>
+            <input type="number" id="batteryCapacity" required>
+            <label for="numPropellers">Number of Propellers:</label>
+            <input type="number" id="numPropellers" required>
+            <label for="electronicWeight">Electronic Components Weight (g):</label>
+            <input type="number" id="electronicWeight" required>
+            <label for="frameWeight">Drone Frame Weight (g):</label>
+            <input type="number" id="frameWeight" required>
+            <button type="button" onclick="calculate()">Calculate</button>
+        </form>
+    </div>
+    <div class="data">
+        <div id="results">
+            <h2>Results</h2>
+            <!-- Results will dynamically appear here -->
+        </div>
+    </div>
+    <script>
+        function calculate() {
+            var batteryWeight = parseFloat(document.getElementById("batteryWeight").value);
+            var batteryCapacity = parseFloat(document.getElementById("batteryCapacity").value);
+            var numPropellers = parseInt(document.getElementById("numPropellers").value);
+            var electronicWeight = parseFloat(document.getElementById("electronicWeight").value);
+            var frameWeight = parseFloat(document.getElementById("frameWeight").value);
+
+            var thrustPerPropHover = (batteryWeight + electronicWeight + frameWeight) / numPropellers;
+            var energyDensity = (1000 * batteryCapacity) / batteryWeight;
+
+            fetch('flighttime.csv')
+                .then(response => response.text())
+                .then(data => {
+                    var rows = data.split('\n');
+                    var maxThrust = -Infinity;
+                    var maxPower = -Infinity;
+                    var thrustIndex = -1;
+                    var powerIndex = -1;
+                    var thrustData = [];
+                    var powerData = [];
+                    var headerRow = rows[0].split(',');
+
+                    for (var j = 0; j < headerRow.length; j++) {
+                        if (headerRow[j].trim() === 'Thrust (gf)') {
+                            thrustIndex = j;
+                        }
+                        if (headerRow[j].trim() === 'Electrical Power (W)') {
+                            powerIndex = j;
+                        }
+                    }
+                    if (thrustIndex !== -1 || powerIndex !== -1) {
+                        var resultsDiv = document.getElementById("results");
+                        resultsDiv.innerHTML = "<div><p>Thrust per Propeller @ Hover (g): " + thrustPerPropHover.toFixed(2) + " g</p>";
+                        resultsDiv.innerHTML += "<p>Battery Energy Density (Wh/kg): " + energyDensity.toFixed(2) + "</p></div>";
+
+                        var table = "<h2>Motor Data</h2><table><tr>";
+                        for (var k = 0; k < headerRow.length; k++) {
+                            table += "<th>" + headerRow[k] + "</th>";
+                        }
+                        table += "</tr>";
+                        for (var i = 1; i < rows.length; i++) {
+                            var cells = rows[i].split(',');
+                            table += "<tr>";
+                            for (var l = 0; l < cells.length; l++) {
+                                table += "<td>" + cells[l] + "</td>";
+                                if (l === thrustIndex) {
+                                    var thrust = parseFloat(cells[l]);
+                                    thrustData.push(thrust);
+                                    if (!isNaN(thrust) && thrust > maxThrust) {
+                                        maxThrust = thrust;
+                                    }
+                                }
+                                if (l === powerIndex) {
+                                    var power = parseFloat(cells[l]);
+                                    powerData.push(power);
+                                    if (!isNaN(power) && power > maxPower) {
+                                        maxPower = power;
+                                    }
+                                }
+                            }
+                            table += "</tr>";
+                        }
+                        table += "</table>";
+
+                        var weightWithoutBattery = electronicWeight + frameWeight;
+                        var totalWeight = batteryWeight + electronicWeight + frameWeight;
+
+                        var WProp = forecastWPerProp(thrustPerPropHover, powerData, thrustData);
+                        var totalPower = WProp * numPropellers;
+                        var flightTime = calculateFlightTime(batteryCapacity, totalPower);
+                        var maxBatteryWeight = (maxThrust * numPropellers) - electronicWeight - frameWeight;
+                        
+
+                        resultsDiv.innerHTML += "<p>Weight Without Battery (g): " + weightWithoutBattery.toFixed(2) + " g</p>";
+                        resultsDiv.innerHTML += "<p>Total Weight (g): " + totalWeight.toFixed(2) + " g</p>";
+
+                        resultsDiv.innerHTML += "<div><p>W/Prop: " + WProp.toFixed(2) + " W</p>";
+                        resultsDiv.innerHTML += "<p>Total Power (W): " + totalPower.toFixed(2) + " W</p>";
+                        resultsDiv.innerHTML += "<p>Max Weight Capacity (g): </strong> " + maxBatteryWeight.toFixed(2) + " g</p></div></div>";
+                        resultsDiv.innerHTML += "<div class='highlighted-text'><p> <strong>Flight Time: </strong> " + flightTime + "</p></div></div>";
+
+                        var controlRatio = calculateControlRatio(maxThrust, thrustPerPropHover);
+                        resultsDiv.innerHTML += " <p></p><div class='highlighted-text'><p><strong>Control Ratio:</strong> " + controlRatio.toFixed(2) + "</p></div>";
+                        resultsDiv.innerHTML += table;
+                    } else {
+                        resultsDiv.innerHTML += "<p class='error'>Error: Necessary columns not found in CSV file</p>";
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function forecastWPerProp(x, known_y, known_x) {
+            if (known_x.length !== known_y.length || known_x.length === 0) return NaN;
+            const n = known_x.length;
+            const xy = known_x.map((xi, idx) => xi * known_y[idx]).reduce((sum, yi) => sum + yi, 0);
+            const x2 = known_x.map(xi => xi * xi).reduce((sum, xi2) => sum + xi2, 0);
+            const sum_x = known_x.reduce((sum, xi) => sum + xi, 0);
+            const sum_y = known_y.reduce((sum, yi) => sum + yi, 0);
+
+            const slope = (n * xy - sum_x * sum_y) / (n * x2 - sum_x * sum_x);
+            const intercept = (sum_y - slope * sum_x) / n;
+
+            return slope * x + intercept;
+        }
+
+        function calculateFlightTime(capacity, power) {
+            var hours = capacity / power;
+            var hh = Math.floor(hours);
+            var mm = Math.floor((hours - hh) * 60);
+            var ss = Math.floor(((hours - hh) * 60 - mm) * 60);
+            return hh.toString().padStart(2, '0') + ":" + mm.toString().padStart(2, '0') + ":" + ss.toString().padStart(2, '0');
+        }
+
+        function calculateControlRatio(maxThrust, thrustPerPropHover) {
+            return maxThrust / thrustPerPropHover;
+        }
+    </script>
+
+</body>
+
+</html>
